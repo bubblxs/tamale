@@ -1,6 +1,6 @@
 <h2 align="center">tamale</h2>
 
-> tamale is a simple - _mediocre_ - app for gnu/linux distros to farm your beloved steam cards.
+> tamale is a simple - _mediocre_ - script for gnu/linux to farm your beloved steam cards.
 
 > [!NOTE]  
 > you might want to [check the steamworks sdk docs](https://partner.steamgames.com/doc/sdk).
