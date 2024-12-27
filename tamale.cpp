@@ -1,7 +1,4 @@
 #include <iostream>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/prctl.h>
 #include <sys/wait.h>
 #include <chrono>
 #include <thread>
@@ -17,8 +14,31 @@
 #define PATH_SEPARATOR std::filesystem::path::preferred_separator
 #define APPIDS_FILE_PATH "ids.txt"
 
+std::vector<std::string> read_appids(const std::string &file_path)
+{
+    std::ifstream file(file_path);
+
+    if (!file)
+    {
+        std::cerr << "appids file cannot be opened" << std::endl;
+        exit(1);
+    }
+
+    std::string appid;
+    std::vector<std::string> appids;
+
+    while (std::getline(file, appid))
+    {
+        appids.push_back(std::move(appid));
+    }
+
+    file.close();
+
+    return appids;
+}
+
 // tryna get a bimmer, e46
-void tamale(const std::string &app_id)
+void tamale(const std::string &appid)
 {
     std::stringstream appid_path;
     appid_path << TMP_DIR_PATH << PATH_SEPARATOR << "steam_appid.txt";
@@ -27,61 +47,56 @@ void tamale(const std::string &app_id)
 
     if (!file)
     {
-        perror("file 'steam_appid.txt' cannot be created");
+        std::cerr << "file 'steam_appid.txt' cannot be created" << std::endl;
         exit(1);
     }
 
-    file << app_id;
+    file << appid;
     file.close();
 
     SteamAPI_Init();
 
     std::remove(appid_path.str().c_str());
 
-    while (true)
-    {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
+    std::this_thread::sleep_for(std::chrono::minutes(30));
+
+    SteamAPI_Shutdown();
 }
 
-int main()
+int main(void)
 {
-    std::ifstream file(APPIDS_FILE_PATH);
+    std::vector<std::string> appids = read_appids(APPIDS_FILE_PATH);
 
-    if (!file)
+    while (true)
     {
-        std::cerr << "error opening " << APPIDS_FILE_PATH << " file" << std::endl;
-        exit(1);
-    }
+        std::vector<pid_t> pids;
 
-    std::string app_id;
-    std::vector<pid_t> pids;
-
-    while (std::getline(file, app_id))
-    {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-
-        pid_t pid = fork();
-
-        if (pid < 0)
+        for (const std::string &appid : appids)
         {
-            std::cerr << "foik failed" << std::endl;
-            exit(1);
-        }
-        else if (pid == 0)
-        {
-            tamale(app_id);
-            exit(0);
-        }
-        else
-        {
-            pids.push_back(pid);
-        }
-    }
+            std::this_thread::sleep_for(std::chrono::milliseconds(666));
 
-    for (pid_t pid : pids)
-    {
-        waitpid(pid, nullptr, 0);
+            pid_t pid = fork();
+
+            if (pid < 0)
+            {
+                std::cerr << "foik failed" << std::endl;
+                exit(1);
+            }
+            else if (pid == 0)
+            {
+                tamale(appid);
+                exit(0);
+            }
+            else
+            {
+                pids.push_back(std::move(pid));
+            }
+        }
+
+        for (const pid_t &pid : pids)
+        {
+            waitpid(pid, nullptr, 0);
+        }
     }
 
     return 0;
